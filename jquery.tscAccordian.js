@@ -12,16 +12,17 @@
         defaults = {
             openClassName: "open",
         };
+    var accGroups = [];   //saved accordians
+    var accCollection = {};
+
 
     function Plugin(el, options) {
         this.el = el;
         this.options = $.extend({}, defaults, options);
-
+        
         this._defaults = defaults;
         this._name = pluginName;
-        var allAccordians = {};
         this.init();
-        debugger;
     }
 
     Plugin.prototype = {
@@ -33,24 +34,59 @@
             /**
              * Hook up initial events
              */
-
-            this._setupAcc();
+            this._findAllGroups();
+            //this._setupAcc();
+            this._bindEvents();
+            
         
         },
 
+        _findAllGroups: function () {
+            accGroups = $('[accordian]').filter(function () {
+                return $(this).attr('accordian').toLowerCase().indexOf('true') > -1;
+            });
+            
+            //build the Accordian Collection
+            
+            for (var i = 0; i < accGroups.length; i++) {
+                accCollection[i] = {}; //initial sub object
+
+                accCollection[i].element = accGroups[i];
+                accCollection[i].auto = $(accGroups[i]).attr('autoclose').toLowerCase();
+                accCollection[i].collapsed = $(accGroups[i]).attr('collapsed').toLowerCase();
+                
+                if ($(accGroups[i]).prop('nodeName') == 'H2') {
+                        accCollection[i].parent = $(accGroups[i]).parent().next().get(0);
+                }
+                if ($(accGroups[i]).prop('nodeName') == 'SPAN') {
+                        accCollection[i].parent = $(accGroups[i]).next().get(0);
+                }
+                
+            }
+        },
+
+        _bindEvents: function () {
+            
+            for (var key in accCollection) {
+                debugger
+                $(accCollection[key].element).on('click',  function () {
+                    debugger;
+                    
+                    $(accCollection[key].parent).toggle();
+                });
+            }
+            
+        },
+
         _setupAcc: function() {
-            debugger;
             //$(this.el);
 
             //find all accordians
-            allAccordians = $('[accordian]').filter(function () {
-                return $(this).attr('accordian').toLowerCase().indexOf('true') > -1;
-            });
-            $(allAccordians).each(function () {
+            
+            $(accGroups).each(function () {
 
                 if ($(this).prop('nodeName') == 'H2') {
                     $(this).on('click', function () {
-                        //debugger;
                         $(this).parent().next().toggle();
                     });
                 }
