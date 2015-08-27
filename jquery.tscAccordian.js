@@ -6,20 +6,18 @@
  *
 */
 
-; (function ($, window, document, undefined) {
-
-    var pluginName = 'tscAccordian',
+(function ($, window, document, undefined) {
+    var pluginName = 'tscAccordion',
         defaults = {
             openClassName: "open",
         };
-    var accGroups = [];   //saved accordians
-    var accCollection = {};
-
+    var accGroups = []; //saved accordion selection
+    var accCollection = [];  //collection of groups
 
     function Plugin(el, options) {
         this.el = el;
         this.options = $.extend({}, defaults, options);
-        
+
         this._defaults = defaults;
         this._name = pluginName;
         this.init();
@@ -27,64 +25,115 @@
 
     Plugin.prototype = {
 
-        init: function () {
+        init: function () {            
             this.activeRow = null;
-
-
-            /**
-             * Hook up initial events
-             */
             this._findAllGroups();
-            //this._setupAcc();
             this._bindEvents();
             
-        
+            this._setDefaultStates();
+            this._addButtonMarkup();
+            
+        },
+
+        // Private methods start with underscore
+
+        _addButtonMarkup: function () {
+
+            for (var i = 0; i < accCollection.length; i++) {
+                //$(accCollection[i].element).append("<div class='plusMinusIcon'></div>");
+                var icon = document.createElement("div");
+                icon.className = "plusMinusIcon";
+                accCollection[i].element.appendChild(icon);
+            }
         },
 
         _findAllGroups: function () {
-            accGroups = $('[accordian]').filter(function () {
-                return $(this).attr('accordian').toLowerCase().indexOf('true') > -1;
+
+            accGroups = $('[accordion]').filter(function () {
+                return $(this).attr('accordion').toLowerCase().indexOf('true') > -1;
             });
-            
-            //build the Accordian Collection
-            
+            //build the Accordion Collection
             for (var i = 0; i < accGroups.length; i++) {
                 accCollection[i] = {}; //initial sub object
-
                 accCollection[i].element = accGroups[i];
-                accCollection[i].auto = $(accGroups[i]).attr('autoclose').toLowerCase();
+                accCollection[i].autoclose = $(accGroups[i]).attr('autoclose').toLowerCase();
                 accCollection[i].collapsed = $(accGroups[i]).attr('collapsed').toLowerCase();
-                
                 if ($(accGroups[i]).prop('nodeName') == 'H2') {
-                        accCollection[i].parent = $(accGroups[i]).parent().next().get(0);
+                    accCollection[i].elementTarget = $(accGroups[i]).parent().siblings().get(0);
+                    accCollection[i].elementParent = $(accGroups[i]).parent().parent();
                 }
                 if ($(accGroups[i]).prop('nodeName') == 'SPAN') {
-                        accCollection[i].parent = $(accGroups[i]).next().get(0);
+                    accCollection[i].elementTarget = $(accGroups[i]).next().get(0);
+                    accCollection[i].elementParent = $(accGroups[i]).parent();
                 }
                 
             }
+        },
+
+        _chromeIconFix: function (element) {
+            //chrome bug fix, when it doesnt redraw the background image. this should fix it
+            var oldBG = $(element).css("background-image");
+            $(element).css("background-image", oldBG);
+        },
+
+        _toggleState: function (key) {
+            //if open then close
+            $(accCollection[key].elementParent).toggleClass('collapse');
+            this._chromeIconFix(accCollection[key].element);
         },
 
         _bindEvents: function () {
-            
-            for (var key in accCollection) {
-                debugger
-                $(accCollection[key].element).on('click',  function () {
-                    debugger;
-                    
-                    $(accCollection[key].parent).toggle();
+            for (var i = 0; i < accCollection.length; i++) {
+                $(accCollection[i].element).on('click', {
+                    elementTarget: accCollection[i].elementTarget,
+                    autoclose: accCollection[i].autoclose,
+                    key: i,
+                    that: this
+                }, function (event) {
+                    $(event.data.that._toggleState(event.data.key));
+                    //if current menu is auto run autoclose
+
+                    if (event.data.autoclose == "true") {
+                        $(event.data.that._autoClose(event.data.key))
+                    }
+
                 });
             }
-            
         },
 
-        _setupAcc: function() {
-            //$(this.el);
+        _autoClose: function (groupKeepOpen) {
+            for (var i = 0; i < accCollection.length; i++) {
+                if (groupKeepOpen != i) {
+                    if (accCollection[i].autoclose == 'true') {
+                        //close the item
+                        this._setState(i, 'close');
+                    }
+                }
+            }
+        },
+        
+        
 
-            //find all accordians
-            
+        _setState: function (i, setState) {
+            if (setState == "open") {
+                $(accCollection[i].elementParent).removeClass('collapse');
+            } else if (setState == "close") {
+                $(accCollection[i].elementParent).addClass('collapse');
+            }
+            this._chromeIconFix(accCollection[i].element);
+        },
+
+        _setDefaultStates: function () {
+            for (var i = 0; i < accCollection.length; i++) {
+                if (accCollection[i].collapsed == 'true') {
+                    this._setState(i, 'close');
+                }
+            }
+        },
+
+        _setupAcc: function () {
+            //find all accordions
             $(accGroups).each(function () {
-
                 if ($(this).prop('nodeName') == 'H2') {
                     $(this).on('click', function () {
                         $(this).parent().next().toggle();
@@ -95,15 +144,11 @@
                         $(this).next().toggle();
                     });
                 }
-
             });
-            
-            //debugger;
         }
 
     };
 
-    // Private methods start with underscore
 
     $.fn[pluginName] = function (options) {
         var args = arguments;
@@ -112,17 +157,7 @@
         // instantiate a new instance of the plugin.
         if (options === undefined || typeof options === 'object') {
             return this.each(function () {
-
-                // Only allow the plugin to be instantiated once,
-                // so we check that the element has no plugin instantiation yet
-                if (!$.data(this, 'plugin_' + pluginName)) {
-
-                    // if it has no instance, create a new one,
-                    // pass options to our plugin constructor,
-                    // and store the plugin instance
-                    // in the elements jQuery data object.
-                    $.data(this, 'plugin_' + pluginName, new Plugin(this, options));
-                }
+                $.data(this, 'plugin_' + pluginName, new Plugin(this, options));
             });
 
             // If the first parameter is a string and it doesn't start
@@ -159,5 +194,7 @@
             return returns !== undefined ? returns : this;
         }
     };
-    
+
+
+
 }(jQuery, window, document));
